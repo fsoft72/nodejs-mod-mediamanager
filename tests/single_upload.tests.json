@@ -1,0 +1,24 @@
+{
+    "system": {
+        "base_url": "http://localhost:12000",
+        "authorization_template": "Bearer %(token)s"
+    },
+    "actions": [
+        {
+            "action": "include",
+            "filename": "../../user/tests/user.debug_login.json",
+            "exec": true
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/upload",
+            "params": {
+                "name": "Test Upload",
+                "module": "test"
+            },
+            "files": {
+                "file": "./data/test.png"
+            }
+        }
+    ]
+}

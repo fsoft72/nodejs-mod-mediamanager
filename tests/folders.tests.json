@@ -1,0 +1,186 @@
+{
+    "actions": [
+        {
+            "method": "get",
+            "url": "/api/media/folder/root",
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_root"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Animals",
+                "id_parent": "%(id_folder_root)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_animals"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Dogs",
+                "id_parent": "%(id_folder_animals)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_dogs"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Cats",
+                "id_parent": "%(id_folder_animals)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_cats"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Super Heroes",
+                "id_parent": "%(id_folder_root)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_heroes"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Marvel",
+                "id_parent": "%(id_folder_heroes)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_marvel"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "DC",
+                "id_parent": "%(id_folder_heroes)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_dc"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Spiderman",
+                "id_parent": "%(id_folder_marvel)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_spiderman"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Captain America",
+                "id_parent": "%(id_folder_marvel)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_cap"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Iron Man",
+                "id_parent": "%(id_folder_marvel)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_ironman"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Batman",
+                "id_parent": "%(id_folder_dc)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_batman"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Wonder Woman",
+                "id_parent": "%(id_folder_dc)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_ww"
+                ]
+            ]
+        },
+        {
+            "method": "POST",
+            "url": "/api/media/folder/create",
+            "params": {
+                "name": "Flash",
+                "id_parent": "%(id_folder_dc)s"
+            },
+            "fields": [
+                [
+                    "folder.id",
+                    "id_folder_flash"
+                ]
+            ]
+        },
+        {
+            "method": "get",
+            "url": "/api/media/folders/tree"
+        }
+    ]
+}
