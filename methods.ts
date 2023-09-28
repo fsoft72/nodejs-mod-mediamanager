@@ -33,7 +33,8 @@ import { ext, ext2mime } from '../../liwe/mimetype';
 import * as fs from '../../liwe/fs';
 import { upload_fullpath } from '../../liwe/liwe';
 import { mk_thumb } from '../../liwe/image';
-import { basename } from 'path';
+import { ExifImage } from 'exif';
+import { tag_obj } from '../tag/methods';
 
 const _create_root_folder = async ( req: ILRequest, domain: SystemDomain ): Promise<MediaFolder> => {
 	const folder: MediaFolder = {
@@ -89,7 +90,9 @@ const _resolve_folder = async ( req: ILRequest, id_folder: string, err: ILError 
 	return folder;
 };
 
-const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, size: number ): Media => {
+const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, size: number, title: string ): Media => {
+	if ( !title ) title = fs.basename( filename );
+
 	// create a record inside the mm_medias collection
 	const media: Media = {
 		id: mkid( 'media' ),
@@ -100,6 +103,7 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
 		mimetype: ext2mime( ext( filename ) ),
 		original_filename: filename,
 		name: fs.basename( filename ),
+		title,
 		is_ready: false,
 	};
 
@@ -118,9 +122,66 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
 
 	return media;
 };
+
+const _read_metadata = async ( media: Media ): Promise<void> => {
+	return new Promise( ( resolve, reject ) => {
+		new ExifImage( { image: media.abs_path }, ( err, exifData ) => {
+			if ( exifData ) {
+				delete ( exifData as any )[ 'userComment' ];
+				// console.log( "=== EXIF: ", JSON.stringify( exifData, null, 4 ) );
+
+				if ( Object.keys( exifData.gps ).length > 0 ) {
+					const { GPSLatitude, GPSLongitude } = exifData.gps;
+					if ( GPSLatitude?.length == 3 && GPSLongitude?.length == 3 ) {
+						const latitude = GPSLatitude[ 0 ] + GPSLatitude[ 1 ] / 60 + GPSLatitude[ 2 ] / 3600;
+						const longitude = GPSLongitude[ 0 ] + GPSLongitude[ 1 ] / 60 + GPSLongitude[ 2 ] / 3600;
+
+						media.lat = latitude.toString();
+						media.lng = longitude.toString();
+					}
+				}
+
+				media.width = exifData.exif.ExifImageWidth;
+				media.height = exifData.exif.ExifImageHeight;
+
+				media.exif = exifData.image;
+				media.creation = _convDate( exifData.exif.CreateDate );
+				media.year = media.creation.getFullYear();
+				media.month = media.creation.getMonth() + 1;
+
+				media.orientation = exifData.image.Orientation;
+			}
+
+			return resolve();
+		} );
+	} );
+};
+
+// takes a date in this format: "2007:06:24 11:54:27"
+// and returns a valid JavaScript date object
+const _convDate = ( date: string ): Date => {
+	if ( !date ) return new Date();
+
+	const parts = date.split( " " );
+	const d = parts[ 0 ].split( ":" );
+	const t = parts[ 1 ].split( ":" );
+
+	return new Date( parseInt( d[ 0 ] ), parseInt( d[ 1 ] ) - 1, parseInt( d[ 2 ] ), parseInt( t[ 0 ] ), parseInt( t[ 1 ] ), parseInt( t[ 2 ] ) );
+};
+
+// if some metadata is missing, try to fix it
+const _fix_media = ( media: Media ): void => {
+	if ( !media.creation ) {
+		media.creation = new Date();
+		media.year = media.creation.getFullYear();
+		media.month = media.creation.getMonth() + 1;
+	}
+
+	if ( !media.orientation ) media.orientation = 1;
+};
 /*=== f2c_end __file_header ===*/
 
-// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, cback: LCBack = null ): Promise<string>
+// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, cback: LCBack = null ): Promise<string>
 /**
  *
  * Use this to start a new chunked upload.
@@ -132,11 +193,12 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
  * @param id_folder - The ID Folder where to upload the media [req]
  * @param filename - Original filename [req]
  * @param size - Complete file size in bytes [req]
+ * @param title - The media title [opt]
  *
  * @return id_upload: string
  *
  */
-export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, cback: LCback = null ): Promise<string> => {
+export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, cback: LCback = null ): Promise<string> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_media_upload_chunk_start ===*/
 		const err = { message: "Folder not found" };
@@ -144,7 +206,7 @@ export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string
 		const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
 		if ( !folder ) return cback ? cback( err, null ) : reject( err );
 
-		const media: Media = _prepare_media( req, folder, filename, size );
+		const media: Media = _prepare_media( req, folder, filename, size, title );
 
 		// Create an empty file with the correct size if it doesn't exist
 		if ( !fs.exists( media.abs_path ) ) fs.write( media.abs_path, Buffer.alloc( media.size ) );
@@ -466,18 +528,20 @@ export const delete_media_delete_items = ( req: ILRequest, medias: string[], cba
 };
 // }}}
 
-// {{{ post_media_upload ( req: ILRequest, module?: string, id_folder?: string, cback: LCBack = null ): Promise<Media[]>
+// {{{ post_media_upload ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[], cback: LCBack = null ): Promise<Media[]>
 /**
  *
  * This method allows the upload of one or more files, using the *classical* way of uploading of `POST` files.
  *
+ * @param title - The media title [opt]
  * @param module - The module the file belongs to [opt]
  * @param id_folder - Destination Folder id [opt]
+ * @param tags - File tags [opt]
  *
  * @return media: Media
  *
  */
-export const post_media_upload = ( req: ILRequest, module?: string, id_folder?: string, cback: LCback = null ): Promise<Media[]> => {
+export const post_media_upload = ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[], cback: LCback = null ): Promise<Media[]> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_media_upload ===*/
 		const err = { message: "No files uploaded" };
@@ -495,7 +559,7 @@ export const post_media_upload = ( req: ILRequest, module?: string, id_folder?: 
 		await Promise.all( keys.map( async ( key ) => {
 			const file = req.files[ key ];
 
-			const media: Media = _prepare_media( req, folder, file.name, file.size );
+			const media: Media = _prepare_media( req, folder, file.name, file.size, title );
 
 			// console.log( "=== FILE: ", key, file, media );
 
@@ -505,6 +569,15 @@ export const post_media_upload = ( req: ILRequest, module?: string, id_folder?: 
 			// create the thumbnail
 			mk_thumb( media.abs_path, media.thumbnail, req.cfg.upload.sizes.thumb || 400, 0 );
 
+			// read metadata
+			await _read_metadata( media );
+
+			await tag_obj( req, tags, media, 'mediamanager' );
+
+			media.is_ready = true;
+
+			_fix_media( media );
+
 			// add the media to the database
 			await adb_record_add( req.db, COLL_MM_MEDIAS, media, MediaKeys );
 
@@ -513,6 +586,33 @@ export const post_media_upload = ( req: ILRequest, module?: string, id_folder?: 
 
 		return cback ? cback( null, res ) : resolve( res );
 		/*=== f2c_end post_media_upload ===*/
+	} );
+};
+// }}}
+
+// {{{ get_media_search ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50, cback: LCBack = null ): Promise<Media[]>
+/**
+ *
+ * Performs a query for one or more of the given fields
+ *
+ * @param title - Media title [opt]
+ * @param name - Media name [opt]
+ * @param type - Media type [opt]
+ * @param tags - Media tags [opt]
+ * @param year - Media creation year [opt]
+ * @param skip - Pagination start [opt]
+ * @param rows - How many rows to return [opt]
+ *
+ * @return medias: Media
+ *
+ */
+export const get_media_search = ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50, cback: LCback = null ): Promise<Media[]> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start get_media_search ===*/
+		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { title, name, type, tags, year }, MediaKeys, { skip, rows } );
+
+		return cback ? cback( null, medias ) : resolve( medias );
+		/*=== f2c_end get_media_search ===*/
 	} );
 };
 // }}}
@@ -536,8 +636,15 @@ export const mediamanager_db_init = ( liwe: ILiWE, cback: LCback = null ): Promi
 		await adb_collection_init( liwe.db, COLL_MM_MEDIAS, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
+			{ type: "persistent", fields: [ "id_owner" ], unique: false },
 			{ type: "persistent", fields: [ "id_folder" ], unique: false },
+			{ type: "persistent", fields: [ "title" ], unique: false },
+			{ type: "persistent", fields: [ "is_ready" ], unique: false },
 			{ type: "persistent", fields: [ "tags[*]" ], unique: false },
+			{ type: "persistent", fields: [ "year" ], unique: false },
+			{ type: "persistent", fields: [ "month" ], unique: false },
+			{ type: "persistent", fields: [ "creation" ], unique: false },
+			{ type: "persistent", fields: [ "orientation" ], unique: false },
 		], { drop: false } );
 
 		await adb_collection_init( liwe.db, COLL_MM_BINDINGS, [

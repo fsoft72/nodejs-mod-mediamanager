@@ -12,8 +12,8 @@ import { perms } from '../../liwe/auth';
 import {
 	// endpoints function
 	delete_media_delete_items, delete_media_folder_delete, get_media_folder_root, get_media_folders_tree, get_media_get,
-	get_media_list, patch_media_folder_rename, post_media_folder_create, post_media_upload, post_media_upload_chunk_add,
-	post_media_upload_chunk_start,
+	get_media_list, get_media_search, patch_media_folder_rename, post_media_folder_create, post_media_upload,
+	post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
 	
 } from './methods';
@@ -36,15 +36,16 @@ export const init = ( liwe: ILiWE ) => {
 	mediamanager_db_init ( liwe );
 
 	app.post ( '/api/media/upload/chunk/start', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id_folder, filename, size, ___errors } = typed_dict( req.body, [
+		const { id_folder, filename, size, title, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true },
 			{ name: "filename", type: "string", required: true },
-			{ name: "size", type: "number", required: true }
+			{ name: "size", type: "number", required: true },
+			{ name: "title", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_media_upload_chunk_start ( req, id_folder, filename, size, ( err: ILError, id_upload: string ) => {
+		post_media_upload_chunk_start ( req, id_folder, filename, size, title, ( err: ILError, id_upload: string ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id_upload } );
@@ -177,17 +178,39 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( '/api/media/upload', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { module, id_folder, ___errors } = typed_dict( req.body, [
+		const { title, module, id_folder, tags, ___errors } = typed_dict( req.body, [
+			{ name: "title", type: "string" },
 			{ name: "module", type: "string" },
-			{ name: "id_folder", type: "string" }
+			{ name: "id_folder", type: "string" },
+			{ name: "tags", type: "string[]" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_media_upload ( req, module, id_folder, ( err: ILError, media: Media ) => {
+		post_media_upload ( req, title, module, id_folder, tags, ( err: ILError, media: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
+		} );
+	} );
+
+	app.get ( '/api/media/search', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { title, name, type, tags, year, skip, rows, ___errors } = typed_dict( req.query as any, [
+			{ name: "title", type: "string" },
+			{ name: "name", type: "string" },
+			{ name: "type", type: "string" },
+			{ name: "tags", type: "string[]" },
+			{ name: "year", type: "number" },
+			{ name: "skip", type: "number" },
+			{ name: "rows", type: "number" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		get_media_search ( req, title, name, type, tags, year, skip, rows, ( err: ILError, medias: Media ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { medias } );
 		} );
 	} );
 

@@ -12,6 +12,8 @@ export interface Media {
 	id_owner?: string;
 	/** The folder containing this media */
 	id_folder?: string;
+	/** Media title */
+	title?: string;
 	/** Upload file name */
 	name?: string;
 	/** The original uploaded file name  */
@@ -40,6 +42,20 @@ export interface Media {
 	lat?: string;
 	/** Longitude */
 	lng?: string;
+	/** Width in pixels */
+	width?: number;
+	/** Height in pixels */
+	height?: number;
+	/** Year of creation of the media */
+	year?: number;
+	/** Month of creation of the media */
+	month?: number;
+	/** Date of creation of the media */
+	creation?: Date;
+	/** If a photo is vertical or horizontal */
+	orientation?: number;
+	/** Image EXIF metadata */
+	exif?: any;
 }
 
 export const MediaKeys = {
@@ -47,6 +63,7 @@ export const MediaKeys = {
 	'domain': { type: 'string', priv: false },
 	'id_owner': { type: 'string', priv: false },
 	'id_folder': { type: 'string', priv: false },
+	'title': { type: 'string', priv: false },
 	'name': { type: 'string', priv: false },
 	'original_filename': { type: 'string', priv: false },
 	'mimetype': { type: 'string', priv: false },
@@ -61,6 +78,13 @@ export const MediaKeys = {
 	'tags': { type: 'string[]', priv: false },
 	'lat': { type: 'string', priv: false },
 	'lng': { type: 'string', priv: false },
+	'width': { type: 'number', priv: false },
+	'height': { type: 'number', priv: false },
+	'year': { type: 'number', priv: false },
+	'month': { type: 'number', priv: false },
+	'creation': { type: 'Date', priv: false },
+	'orientation': { type: 'number', priv: false },
+	'exif': { type: 'any', priv: false },
 };
 
 /** MediaBind */
