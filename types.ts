@@ -6,7 +6,7 @@
 /** Media */
 export interface Media {
 	/** the main id field */
-	id?: string;
+	id: string;
 	domain?: string;
 	/** The user id that uploaded this media */
 	id_owner?: string;
@@ -34,6 +34,12 @@ export interface Media {
 	is_ready?: boolean;
 	/** MD5 file checksum */
 	md5?: string;
+	/** tags for this media */
+	tags?: string[];
+	/** Latitude */
+	lat?: string;
+	/** Longitude */
+	lng?: string;
 }
 
 export const MediaKeys = {
@@ -52,12 +58,15 @@ export const MediaKeys = {
 	'ext': { type: 'string', priv: false },
 	'is_ready': { type: 'boolean', priv: false },
 	'md5': { type: 'string', priv: false },
+	'tags': { type: 'string[]', priv: false },
+	'lat': { type: 'string', priv: false },
+	'lng': { type: 'string', priv: false },
 };
 
 /** MediaBind */
 export interface MediaBind {
 	/** the main id field */
-	id?: string;
+	id: string;
 	id_media?: string;
 	id_object?: string;
 	module?: string;
@@ -73,7 +82,7 @@ export const MediaBindKeys = {
 /** MediaFolder */
 export interface MediaFolder {
 	/** the main id field */
-	id?: string;
+	id: string;
 	/** The domain */
 	domain?: string;
 	/** The parent folder */
@@ -97,7 +106,7 @@ export const MediaFolderKeys = {
 /** MediaTreeItem */
 export interface MediaTreeItem {
 	/** the main id field */
-	id?: string;
+	id: string;
 	id_parent?: string;
 	name?: string;
 	subfolders?: MediaTreeItem[];

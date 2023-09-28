@@ -118,7 +118,6 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
 
 	return media;
 };
-
 /*=== f2c_end __file_header ===*/
 
 // {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, cback: LCBack = null ): Promise<string>
@@ -538,6 +537,7 @@ export const mediamanager_db_init = ( liwe: ILiWE, cback: LCback = null ): Promi
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
 			{ type: "persistent", fields: [ "id_folder" ], unique: false },
+			{ type: "persistent", fields: [ "tags[*]" ], unique: false },
 		], { drop: false } );
 
 		await adb_collection_init( liwe.db, COLL_MM_BINDINGS, [
