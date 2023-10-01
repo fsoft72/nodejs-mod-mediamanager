@@ -93,6 +93,8 @@ const _resolve_folder = async ( req: ILRequest, id_folder: string, err: ILError 
 const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, size: number, title: string ): Media => {
 	if ( !title ) title = fs.basename( filename );
 
+	filename = fs.sanitize( filename );
+
 	// create a record inside the mm_medias collection
 	const media: Media = {
 		id: mkid( 'media' ),
@@ -119,6 +121,19 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
 
 	// Create the directory if it doesn't exist
 	if ( !fs.exists( `${ media.path }/thumbs` ) ) fs.mkdir( `${ media.path }/thumbs` );
+
+	return media;
+};
+
+const _media_is_ready = async ( req: ILRequest, media: Media ): Promise<Media> => {
+	// create the thumbnail
+	await mk_thumb( media.abs_path, media.thumbnail, req.cfg.upload.sizes.thumb || 400, 0 );
+
+	// read metadata
+	await _read_metadata( media );
+	media.is_ready = true;
+
+	_fix_media( media );
 
 	return media;
 };
@@ -181,7 +196,7 @@ const _fix_media = ( media: Media ): void => {
 };
 /*=== f2c_end __file_header ===*/
 
-// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, cback: LCBack = null ): Promise<string>
+// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], cback: LCBack = null ): Promise<string>
 /**
  *
  * Use this to start a new chunked upload.
@@ -194,11 +209,12 @@ const _fix_media = ( media: Media ): void => {
  * @param filename - Original filename [req]
  * @param size - Complete file size in bytes [req]
  * @param title - The media title [opt]
+ * @param tags - The media tags [opt]
  *
  * @return id_upload: string
  *
  */
-export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, cback: LCback = null ): Promise<string> => {
+export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], cback: LCback = null ): Promise<string> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_media_upload_chunk_start ===*/
 		const err = { message: "Folder not found" };
@@ -210,6 +226,8 @@ export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string
 
 		// Create an empty file with the correct size if it doesn't exist
 		if ( !fs.exists( media.abs_path ) ) fs.write( media.abs_path, Buffer.alloc( media.size ) );
+
+		await tag_obj( req, tags, media, 'mediamanager' );
 
 		await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 
@@ -238,7 +256,7 @@ export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, 
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_media_upload_chunk_add ===*/
 		const err = { message: "Upload not found" };
-		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id: id_upload } );
+		let media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id: id_upload } );
 
 		if ( !media ) return cback ? cback( err, null ) : reject( err );
 
@@ -251,12 +269,14 @@ export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, 
 			// console.log( "=== writing ...", chunk.length );
 			writeStream.write( chunk );
 		} );
-		req.on( 'end', () => {
+		req.on( 'end', async () => {
 			// console.log( "=== ending ..." );
 			writeStream.end();
 			console.log( "=== START: ", start, "BYTES: ", bytes, "TOTAL: ", media.size, "COMPLETED: ", ( start + bytes == media.size ) );
 			if ( start + bytes == media.size ) {
-				mk_thumb( media.abs_path, media.thumbnail, _liwe.cfg.upload.sizes.thumb || 400, 0 );
+				media = await _media_is_ready( req, media );
+
+				await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 			}
 			return cback ? cback( null, bytes ) : resolve( bytes );
 		} );
@@ -556,8 +576,11 @@ export const post_media_upload = ( req: ILRequest, title?: string, module?: stri
 
 		if ( !folder ) return cback ? cback( err, null ) : reject( err );
 
+
 		await Promise.all( keys.map( async ( key ) => {
 			const file = req.files[ key ];
+
+			if ( !title ) title = file.name;
 
 			const media: Media = _prepare_media( req, folder, file.name, file.size, title );
 
@@ -566,17 +589,9 @@ export const post_media_upload = ( req: ILRequest, title?: string, module?: stri
 			// move the tmp file to the correct location
 			fs.move( file.tempFilePath, media.abs_path );
 
-			// create the thumbnail
-			mk_thumb( media.abs_path, media.thumbnail, req.cfg.upload.sizes.thumb || 400, 0 );
-
-			// read metadata
-			await _read_metadata( media );
-
 			await tag_obj( req, tags, media, 'mediamanager' );
 
-			media.is_ready = true;
-
-			_fix_media( media );
+			await _media_is_ready( req, media );
 
 			// add the media to the database
 			await adb_record_add( req.db, COLL_MM_MEDIAS, media, MediaKeys );

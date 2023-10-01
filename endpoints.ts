@@ -36,16 +36,17 @@ export const init = ( liwe: ILiWE ) => {
 	mediamanager_db_init ( liwe );
 
 	app.post ( '/api/media/upload/chunk/start', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id_folder, filename, size, title, ___errors } = typed_dict( req.body, [
+		const { id_folder, filename, size, title, tags, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true },
 			{ name: "filename", type: "string", required: true },
 			{ name: "size", type: "number", required: true },
-			{ name: "title", type: "string" }
+			{ name: "title", type: "string" },
+			{ name: "tags", type: "string[]" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_media_upload_chunk_start ( req, id_folder, filename, size, title, ( err: ILError, id_upload: string ) => {
+		post_media_upload_chunk_start ( req, id_folder, filename, size, title, tags, ( err: ILError, id_upload: string ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id_upload } );
