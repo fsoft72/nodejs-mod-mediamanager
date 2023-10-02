@@ -632,6 +632,26 @@ export const get_media_search = ( req: ILRequest, title?: string, name?: string,
 };
 // }}}
 
+// {{{ get_media_get_latest ( req: ILRequest, skip: number = 0, rows: number = 50, cback: LCBack = null ): Promise<Media[]>
+/**
+ *
+ * @param skip - The starting point [opt]
+ * @param rows - How many items to retrieve [opt]
+ *
+ * @return medias: Media
+ *
+ */
+export const get_media_get_latest = ( req: ILRequest, skip: number = 0, rows: number = 50, cback: LCback = null ): Promise<Media[]> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start get_media_get_latest ===*/
+		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, {}, MediaKeys, { skip, rows, sort: [ { field: "created", desc: -1 } ] } );
+
+		return cback ? cback( null, medias ) : resolve( medias );
+		/*=== f2c_end get_media_get_latest ===*/
+	} );
+};
+// }}}
+
 // {{{ mediamanager_db_init ( liwe: ILiWE, cback: LCBack = null ): Promise<boolean>
 /**
  *

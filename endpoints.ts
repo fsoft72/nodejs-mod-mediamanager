@@ -12,8 +12,8 @@ import { perms } from '../../liwe/auth';
 import {
 	// endpoints function
 	delete_media_delete_items, delete_media_folder_delete, get_media_folder_root, get_media_folders_tree, get_media_get,
-	get_media_list, get_media_search, patch_media_folder_rename, post_media_folder_create, post_media_upload,
-	post_media_upload_chunk_add, post_media_upload_chunk_start,
+	get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename, post_media_folder_create,
+	post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
 	
 } from './methods';
@@ -209,6 +209,21 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_media_search ( req, title, name, type, tags, year, skip, rows, ( err: ILError, medias: Media ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { medias } );
+		} );
+	} );
+
+	app.get ( '/api/media/get/latest', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { skip, rows, ___errors } = typed_dict( req.query as any, [
+			{ name: "skip", type: "number" },
+			{ name: "rows", type: "number" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		get_media_get_latest ( req, skip, rows, ( err: ILError, medias: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
