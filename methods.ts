@@ -6,6 +6,7 @@
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
 import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
+import * as sharp from 'sharp';
 
 import {
 	Media, MediaBind, MediaBindKeys, MediaFolder, MediaFolderKeys,
@@ -140,7 +141,7 @@ const _media_is_ready = async ( req: ILRequest, media: Media ): Promise<Media> =
 
 const _read_metadata = async ( media: Media ): Promise<void> => {
 	return new Promise( ( resolve, reject ) => {
-		new ExifImage( { image: media.abs_path }, ( err, exifData ) => {
+		new ExifImage( { image: media.abs_path }, async ( err, exifData ) => {
 			if ( exifData ) {
 				delete ( exifData as any )[ 'userComment' ];
 				// console.log( "=== EXIF: ", JSON.stringify( exifData, null, 4 ) );
@@ -165,6 +166,17 @@ const _read_metadata = async ( media: Media ): Promise<void> => {
 				media.month = media.creation.getMonth() + 1;
 
 				media.orientation = exifData.image.Orientation;
+			} else {
+				// the media has no exif data, we try to get image width and height
+				try {
+					const metadata = await sharp( media.abs_path ).metadata();
+
+					media.width = metadata.width;
+					media.height = metadata.height;
+				} catch ( err ) {
+					console.log( "=== ERROR: ", err );
+				}
+
 			}
 
 			return resolve();
