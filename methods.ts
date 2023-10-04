@@ -32,10 +32,12 @@ import { SystemDomain } from '../system/types';
 import { mkid } from '../../liwe/utils';
 import { ext, ext2mime } from '../../liwe/mimetype';
 import * as fs from '../../liwe/fs';
-import { upload_fullpath } from '../../liwe/liwe';
-import { mk_thumb } from '../../liwe/image';
+import { module_config_load, upload_fullpath } from '../../liwe/liwe';
+import { compress_image, mk_thumb } from '../../liwe/image';
 import { ExifImage } from 'exif';
 import { tag_obj } from '../tag/methods';
+
+const mm_cfg = module_config_load( 'mediamanager' );
 
 const _create_root_folder = async ( req: ILRequest, domain: SystemDomain ): Promise<MediaFolder> => {
 	const folder: MediaFolder = {
@@ -132,6 +134,26 @@ const _media_is_ready = async ( req: ILRequest, media: Media ): Promise<Media> =
 
 	// read metadata
 	await _read_metadata( media );
+
+	// if needed, we compress the original image
+	if ( mm_cfg.compress_original && media.mimetype.startsWith( 'image/' ) && media.size > ( mm_cfg.compress_original_min_size * ( 1024 * 1024 ) ) ) {
+		const tmp_fname = `${ media.abs_path }.tmp.jpg`;
+
+		try {
+			const res = await compress_image( media.abs_path, tmp_fname, mm_cfg.jpeg_quality || 80 );
+
+			if ( res ) {
+				const tmp_size = fs.fileSize( tmp_fname );
+				if ( tmp_size < media.size ) {
+					fs.move( tmp_fname, media.abs_path );
+					media.size = tmp_size;
+				}
+			}
+		} catch ( err ) {
+			console.error( "=== RESIZE ORIG ERROR: ", err );
+		}
+	}
+
 	media.is_ready = true;
 
 	_fix_media( media );
