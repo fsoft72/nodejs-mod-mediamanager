@@ -12,8 +12,8 @@ import { perms } from '../../liwe/auth';
 import {
 	// endpoints function
 	delete_media_delete_items, delete_media_folder_delete, get_media_folder_root, get_media_folders_tree, get_media_get,
-	get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename, post_media_folder_create,
-	post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
+	get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename, patch_media_meta_update,
+	post_media_folder_create, post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
 	
 } from './methods';
@@ -227,6 +227,22 @@ export const init = ( liwe: ILiWE ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
+		} );
+	} );
+
+	app.patch ( '/api/media/meta/update', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { id, title, tags, ___errors } = typed_dict( req.body, [
+			{ name: "id", type: "string", required: true },
+			{ name: "title", type: "string" },
+			{ name: "tags", type: "string[]" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		patch_media_meta_update ( req, id, title, tags, ( err: ILError, media: Media ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { media } );
 		} );
 	} );
 

@@ -686,6 +686,40 @@ export const get_media_get_latest = ( req: ILRequest, skip: number = 0, rows: nu
 };
 // }}}
 
+// {{{ patch_media_meta_update ( req: ILRequest, id: string, title?: string, tags?: string[], cback: LCBack = null ): Promise<Media>
+/**
+ *
+ * Updates the media metadata
+ *
+ * @param id - Media id [req]
+ * @param title - Media title [opt]
+ * @param tags - Media tags [opt]
+ *
+ * @return media: Media
+ *
+ */
+export const patch_media_meta_update = ( req: ILRequest, id: string, title?: string, tags?: string[], cback: LCback = null ): Promise<Media> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start patch_media_meta_update ===*/
+		const err = { message: _( "Media not found" ) };
+		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
+
+		if ( !media ) return cback ? cback( err, null ) : reject( err );
+
+		if ( title ) media.title = title;
+		if ( tags ) {
+			media.tags = [];
+			await tag_obj( req, tags, media, 'mediamanager' );
+		}
+
+		await adb_record_add( req.db, COLL_MM_MEDIAS, media );
+
+		return cback ? cback( null, media ) : resolve( media );
+		/*=== f2c_end patch_media_meta_update ===*/
+	} );
+};
+// }}}
+
 // {{{ mediamanager_db_init ( liwe: ILiWE, cback: LCBack = null ): Promise<boolean>
 /**
  *
