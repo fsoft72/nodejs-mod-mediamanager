@@ -6,7 +6,6 @@
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
 import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
-import * as sharp from 'sharp';
 
 import {
 	Media, MediaBind, MediaBindKeys, MediaFolder, MediaFolderKeys,
@@ -36,6 +35,7 @@ import { module_config_load, upload_fullpath } from '../../liwe/liwe';
 import { compress_image, mk_thumb } from '../../liwe/image';
 import { ExifImage } from 'exif';
 import { tag_obj } from '../tag/methods';
+import sharp = require( 'sharp' );
 
 const mm_cfg = module_config_load( 'mediamanager' );
 

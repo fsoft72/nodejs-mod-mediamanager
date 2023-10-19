@@ -215,7 +215,7 @@ export const init = ( liwe: ILiWE ) => {
 		} );
 	} );
 
-	app.get ( '/api/media/get/latest', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/media/get/latest', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { skip, rows, ___errors } = typed_dict( req.query as any, [
 			{ name: "skip", type: "number" },
 			{ name: "rows", type: "number" }
