@@ -658,7 +658,10 @@ export const post_media_upload = ( req: ILRequest, title?: string, module?: stri
 export const get_media_search = ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50, cback: LCback = null ): Promise<Media[]> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start get_media_search ===*/
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { title: { mode: 'like', value: title }, name, type, tags, year }, MediaKeys, { skip, rows } );
+		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { title: { mode: 'like', value: title }, name, type, tags, year }, MediaKeys, {
+			skip, rows,
+			sort: [ { field: 'created', desc: -1 } ]
+		} );
 
 		return cback ? cback( null, medias ) : resolve( medias );
 		/*=== f2c_end get_media_search ===*/
