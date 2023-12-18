@@ -35,25 +35,26 @@ export const init = ( liwe: ILiWE ) => {
 	liwe.cfg.app.languages.map( ( l ) => locale_load( "mediamanager", l ) );
 	mediamanager_db_init ( liwe );
 
-	app.post ( '/api/media/upload/chunk/start', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id_folder, filename, size, title, tags, ___errors } = typed_dict( req.body, [
+	app.post ( '/api/media/upload/chunk/start', ( req: ILRequest, res: ILResponse ) => {
+		const { id_folder, filename, size, title, tags, anonymous, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true },
 			{ name: "filename", type: "string", required: true },
 			{ name: "size", type: "number", required: true },
 			{ name: "title", type: "string" },
-			{ name: "tags", type: "string[]" }
+			{ name: "tags", type: "string[]" },
+			{ name: "anonymous", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_media_upload_chunk_start ( req, id_folder, filename, size, title, tags, ( err: ILError, id_upload: string ) => {
+		post_media_upload_chunk_start ( req, id_folder, filename, size, title, tags, anonymous, ( err: ILError, id_upload: string ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id_upload } );
 		} );
 	} );
 
-	app.post ( '/api/media/upload/chunk/add', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/media/upload/chunk/add', ( req: ILRequest, res: ILResponse ) => {
 		let { id_upload, start, ___errors } = typed_dict( req.query, [
 			{ name: "id_upload", type: "string", required: true },
 			{ name: "start", type: "number", required: true }

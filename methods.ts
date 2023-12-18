@@ -28,7 +28,7 @@ const COLL_MM_FOLDERS = "mm_folders";
 import { adb_collection_init, adb_del_all_raw, adb_del_one, adb_find_all, adb_find_one, adb_record_add } from '../../liwe/db/arango';
 import { system_domain_get_by_session } from '../system/methods';
 import { SystemDomain } from '../system/types';
-import { mkid } from '../../liwe/utils';
+import { md5, mkid } from '../../liwe/utils';
 import { ext, ext2mime } from '../../liwe/mimetype';
 import * as fs from '../../liwe/fs';
 import { module_config_load, upload_fullpath } from '../../liwe/liwe';
@@ -36,6 +36,7 @@ import { compress_image, mk_thumb } from '../../liwe/image';
 import { ExifImage } from 'exif';
 import { tag_obj } from '../tag/methods';
 import sharp = require( 'sharp' );
+import { perm_available } from '../../liwe/auth';
 
 const mm_cfg = module_config_load( 'mediamanager' );
 
@@ -101,7 +102,7 @@ const _prepare_media = ( req: ILRequest, folder: MediaFolder, filename: string, 
 	// create a record inside the mm_medias collection
 	const media: Media = {
 		id: mkid( 'media' ),
-		id_owner: req.user.id,
+		id_owner: req.user?.id || 'anonymous',
 		domain: folder.domain,
 		id_folder: folder.id,
 		size,
@@ -230,7 +231,7 @@ const _fix_media = ( media: Media ): void => {
 };
 /*=== f2c_end __file_header ===*/
 
-// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], cback: LCBack = null ): Promise<string>
+// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string, cback: LCBack = null ): Promise<string>
 /**
  *
  * Use this to start a new chunked upload.
@@ -238,20 +239,37 @@ const _fix_media = ( media: Media ): void => {
  * This call will instruct the server to receive a new chunked file.
  * During this call you have to provide the original `filename` and the whole upload `size` in bytes.
  * The endpoint will return the `id_upload` that must be used for the next chunked transfer calls.
+ * If the payload contains the `anonymous` value, then the user doesn't need to be logged in to upload files.
  *
  * @param id_folder - The ID Folder where to upload the media [req]
  * @param filename - Original filename [req]
  * @param size - Complete file size in bytes [req]
  * @param title - The media title [opt]
  * @param tags - The media tags [opt]
+ * @param anonymous - If it is set, you don't need permissions [opt]
  *
  * @return id_upload: string
  *
  */
-export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], cback: LCback = null ): Promise<string> => {
+export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string, cback: LCback = null ): Promise<string> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_media_upload_chunk_start ===*/
 		const err = { message: "Folder not found" };
+
+		// if there is no anonymous flag, the user must be logged in and have the 'media.create' permission
+		if ( !anonymous ) {
+			if ( !perm_available( req?.user ?? {}, [ 'media.create' ] ) ) {
+				err.message = _( "You don't have the permission to upload media" );
+				return cback ? cback( err, null ) : reject( err );
+			}
+		} else {
+			// if anonymous is present, we check it against the data being uploaded
+			const d = md5( `${ filename }${ size }${ id_folder }` );
+			if ( d != anonymous ) {
+				err.message = _( "Invalid anonymous token" );
+				return cback ? cback( err, null ) : reject( err );
+			}
+		}
 
 		const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
 		if ( !folder ) return cback ? cback( err, null ) : reject( err );
