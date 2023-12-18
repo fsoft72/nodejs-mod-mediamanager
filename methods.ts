@@ -324,7 +324,7 @@ export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, 
 		req.on( 'end', async () => {
 			// console.log( "=== ending ..." );
 			writeStream.end();
-			console.log( "=== START: ", start, "BYTES: ", bytes, "TOTAL: ", media.size, "COMPLETED: ", ( start + bytes == media.size ) );
+			// console.log( "=== START: ", start, "BYTES: ", bytes, "TOTAL: ", media.size, "COMPLETED: ", ( start + bytes == media.size ) );
 			if ( start + bytes == media.size ) {
 				media = await _media_is_ready( req, media );
 
@@ -737,6 +737,27 @@ export const patch_media_meta_update = ( req: ILRequest, id: string, title?: str
 
 		return cback ? cback( null, media ) : resolve( media );
 		/*=== f2c_end patch_media_meta_update ===*/
+	} );
+};
+// }}}
+
+// {{{ media_get_multi ( medias?: string[], cback: LCBack = null ): Promise<Media[]>
+/**
+ *
+ * Retrieve all media info by the given list of IDs
+ *
+ * @param medias - Array of ID medias [opt]
+ *
+ * @return : Media
+ *
+ */
+export const media_get_multi = ( medias?: string[], cback: LCback = null ): Promise<Media[]> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start media_get_multi ===*/
+		const meds: Media[] = await adb_find_all( _liwe.db, COLL_MM_MEDIAS, { id: { mode: 'in', value: medias } }, MediaKeys );
+
+		return cback ? cback( null, meds ) : resolve( meds );
+		/*=== f2c_end media_get_multi ===*/
 	} );
 };
 // }}}

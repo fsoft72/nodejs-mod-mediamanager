@@ -15,7 +15,7 @@ import {
 	get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename, patch_media_meta_update,
 	post_media_folder_create, post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
-	
+	media_get_multi,
 } from './methods';
 
 import {
