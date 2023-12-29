@@ -37,6 +37,8 @@ import { ExifImage } from 'exif';
 import { tag_obj } from '../tag/methods';
 import sharp = require( 'sharp' );
 import { perm_available } from '../../liwe/auth';
+import { liwe_event_emit } from '../../liwe/events';
+import { MM_EVENT_MEDIA_READY } from './events';
 
 const mm_cfg = module_config_load( 'mediamanager' );
 
@@ -154,6 +156,8 @@ const _media_is_ready = async ( req: ILRequest, media: Media ): Promise<Media> =
 			console.error( "=== RESIZE ORIG ERROR: ", err );
 		}
 	}
+
+	await liwe_event_emit( req, MM_EVENT_MEDIA_READY, media );
 
 	media.is_ready = true;
 
