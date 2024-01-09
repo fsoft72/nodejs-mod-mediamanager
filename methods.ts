@@ -37,8 +37,8 @@ import { ExifImage } from 'exif';
 import { tag_obj } from '../tag/methods';
 import sharp = require( 'sharp' );
 import { perm_available } from '../../liwe/auth';
-import { liwe_event_emit } from '../../liwe/events';
-import { MM_EVENT_MEDIA_READY } from './events';
+import { liwe_event_emit, LiWEEventResponse } from '../../liwe/events';
+import { MM_EVENT_MEDIA_DELETE, MM_EVENT_MEDIA_READY } from './events';
 
 const mm_cfg = module_config_load( 'mediamanager' );
 
@@ -579,7 +579,9 @@ export const get_media_folders_tree = ( req: ILRequest, id_folder?: string, cbac
 export const delete_media_delete_items = ( req: ILRequest, medias: string[], cback: LCback = null ): Promise<number> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start delete_media_delete_items ===*/
+		let res: LiWEEventResponse;
 		const domain = await system_domain_get_by_session( req );
+		const medias_deleted: Media[] = [];
 		const medias_to_delete: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS,
 			{
 				domain: domain.code,
@@ -591,14 +593,19 @@ export const delete_media_delete_items = ( req: ILRequest, medias: string[], cba
 			return cback ? cback( null, 0 ) : resolve( 0 );
 
 		for ( const media of medias_to_delete ) {
+			res = await liwe_event_emit( req, MM_EVENT_MEDIA_DELETE, { media } );
+			if ( res.length && res.reduce( ( acc, val ) => acc + ( val.skip ? 1 : 0 ), 0 ) != 0 ) continue;
+
+			medias_deleted.push( media );
+
 			fs.rm( media.abs_path );
 			fs.rm( media.thumbnail );
 		}
 
 		// delete the records from the database
-		await adb_del_all_raw( req.db, COLL_MM_MEDIAS, medias_to_delete );
+		await adb_del_all_raw( req.db, COLL_MM_MEDIAS, medias_deleted );
 
-		return cback ? cback( null, medias_to_delete.length ) : resolve( medias_to_delete.length );
+		return cback ? cback( null, medias_deleted.length ) : resolve( medias_deleted.length );
 		/*=== f2c_end delete_media_delete_items ===*/
 	} );
 };
