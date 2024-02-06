@@ -233,6 +233,15 @@ const _fix_media = ( media: Media ): void => {
 
 	if ( !media.orientation ) media.orientation = 1;
 };
+
+export const mm_get_folder_by_name = async ( req: ILRequest, name: string, id_parent?: string ): Promise<MediaFolder> => {
+	const err = { message: "Folder not found" };
+	const parent: MediaFolder = await _resolve_folder( req, id_parent, err );
+
+	const folder = await adb_find_one( req.db, COLL_MM_FOLDERS, { name, id_parent: parent.id } );
+
+	return folder;
+};
 /*=== f2c_end __file_header ===*/
 
 // {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string, cback: LCBack = null ): Promise<string>
@@ -360,6 +369,13 @@ export const post_media_folder_create = ( req: ILRequest, id_parent: string, nam
 		const parent: MediaFolder = await _resolve_folder( req, id_parent, err );
 
 		if ( !parent ) return cback ? cback( err, null ) : reject( err );
+
+		// check if the folder already exists
+		const fold = await mm_get_folder_by_name( req, name, parent.id );
+		if ( fold ) {
+			err.message = "Folder already exists";
+			return cback ? cback( err, null ) : reject( err );
+		}
 
 		const folder: MediaFolder = {
 			id: mkid( 'folder' ),
