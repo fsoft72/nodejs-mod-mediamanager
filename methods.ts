@@ -768,6 +768,28 @@ export const patch_media_meta_update = ( req: ILRequest, id: string, title?: str
 };
 // }}}
 
+// {{{ get_media_download ( req: ILRequest, id?: string, cback: LCBack = null ): Promise<boolean>
+/**
+ *
+ * @param id - The media ID [opt]
+ *
+ * @return ok: boolean
+ *
+ */
+export const get_media_download = ( req: ILRequest, id?: string, cback: LCback = null ): Promise<boolean> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start get_media_download ===*/
+		const err = { message: "Media not found" };
+		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
+
+		if ( !media ) return cback ? cback( err, false ) : reject( err );
+
+		return req.res.download( media.abs_path, media.name );
+		/*=== f2c_end get_media_download ===*/
+	} );
+};
+// }}}
+
 // {{{ media_get_multi ( medias?: string[], cback: LCBack = null ): Promise<Media[]>
 /**
  *

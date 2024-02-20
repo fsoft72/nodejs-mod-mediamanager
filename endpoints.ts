@@ -11,9 +11,9 @@ import { perms } from '../../liwe/auth';
 
 import {
 	// endpoints function
-	delete_media_delete_items, delete_media_folder_delete, get_media_folder_root, get_media_folders_tree, get_media_get,
-	get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename, patch_media_meta_update,
-	post_media_folder_create, post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
+	delete_media_delete_items, delete_media_folder_delete, get_media_download, get_media_folder_root, get_media_folders_tree,
+	get_media_get, get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename,
+	patch_media_meta_update, post_media_folder_create, post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
 	media_get_multi,
 } from './methods';
@@ -33,9 +33,9 @@ export const init = ( liwe: ILiWE ) => {
 	console.log( "    - mediamanager " );
 
 	liwe.cfg.app.languages.map( ( l ) => locale_load( "mediamanager", l ) );
-	mediamanager_db_init ( liwe );
+	mediamanager_db_init( liwe );
 
-	app.post ( '/api/media/upload/chunk/start', ( req: ILRequest, res: ILResponse ) => {
+	app.post( '/api/media/upload/chunk/start', ( req: ILRequest, res: ILResponse ) => {
 		const { id_folder, filename, size, title, tags, anonymous, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true },
 			{ name: "filename", type: "string", required: true },
@@ -45,141 +45,141 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "anonymous", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		post_media_upload_chunk_start ( req, id_folder, filename, size, title, tags, anonymous, ( err: ILError, id_upload: string ) => {
+		post_media_upload_chunk_start( req, id_folder, filename, size, title, tags, anonymous, ( err: ILError, id_upload: string ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id_upload } );
 		} );
 	} );
 
-	app.post ( '/api/media/upload/chunk/add', ( req: ILRequest, res: ILResponse ) => {
+	app.post( '/api/media/upload/chunk/add', ( req: ILRequest, res: ILResponse ) => {
 		let { id_upload, start, ___errors } = typed_dict( req.query, [
 			{ name: "id_upload", type: "string", required: true },
 			{ name: "start", type: "number", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		post_media_upload_chunk_add ( req, id_upload, start, ( err: ILError, bytes: number ) => {
+		post_media_upload_chunk_add( req, id_upload, start, ( err: ILError, bytes: number ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { bytes } );
 		} );
 	} );
 
-	app.post ( '/api/media/folder/create', perms( [ "media.folder" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post( '/api/media/folder/create', perms( [ "media.folder" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { id_parent, name, ___errors } = typed_dict( req.body, [
 			{ name: "id_parent", type: "string", required: true },
 			{ name: "name", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		post_media_folder_create ( req, id_parent, name, ( err: ILError, folder: MediaFolder ) => {
+		post_media_folder_create( req, id_parent, name, ( err: ILError, folder: MediaFolder ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
 		} );
 	} );
 
-	app.patch ( '/api/media/folder/rename', perms( [ "media.folder" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.patch( '/api/media/folder/rename', perms( [ "media.folder" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { id_folder, name, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true },
 			{ name: "name", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		patch_media_folder_rename ( req, id_folder, name, ( err: ILError, folder: MediaFolder ) => {
+		patch_media_folder_rename( req, id_folder, name, ( err: ILError, folder: MediaFolder ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
 		} );
 	} );
 
-	app.delete ( '/api/media/folder/delete', perms( [ "media.folder_delete" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.delete( '/api/media/folder/delete', perms( [ "media.folder_delete" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { id_folder, ___errors } = typed_dict( req.body, [
 			{ name: "id_folder", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		delete_media_folder_delete ( req, id_folder, ( err: ILError, ok: boolean ) => {
+		delete_media_folder_delete( req, id_folder, ( err: ILError, ok: boolean ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { ok } );
 		} );
 	} );
 
-	app.get ( '/api/media/folder/root', ( req: ILRequest, res: ILResponse ) => {
-		
+	app.get( '/api/media/folder/root', ( req: ILRequest, res: ILResponse ) => {
 
-		get_media_folder_root ( req, ( err: ILError, folder: MediaFolder ) => {
+
+		get_media_folder_root( req, ( err: ILError, folder: MediaFolder ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
 		} );
 	} );
 
-	app.get ( '/api/media/list', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get( '/api/media/list', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { id_folders, ___errors } = typed_dict( req.query as any, [
 			{ name: "id_folders", type: "string[]" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		get_media_list ( req, id_folders, ( err: ILError, medias: Media ) => {
+		get_media_list( req, id_folders, ( err: ILError, medias: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
 		} );
 	} );
 
-	app.get ( '/api/media/get', ( req: ILRequest, res: ILResponse ) => {
+	app.get( '/api/media/get', ( req: ILRequest, res: ILResponse ) => {
 		const { id, ___errors } = typed_dict( req.query as any, [
 			{ name: "id", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		get_media_get ( req, id, ( err: ILError, media: Media ) => {
+		get_media_get( req, id, ( err: ILError, media: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
 		} );
 	} );
 
-	app.get ( '/api/media/folders/tree', ( req: ILRequest, res: ILResponse ) => {
+	app.get( '/api/media/folders/tree', ( req: ILRequest, res: ILResponse ) => {
 		const { id_folder, ___errors } = typed_dict( req.query as any, [
 			{ name: "id_folder", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		get_media_folders_tree ( req, id_folder, ( err: ILError, tree: MediaFolder ) => {
+		get_media_folders_tree( req, id_folder, ( err: ILError, tree: MediaFolder ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { tree } );
 		} );
 	} );
 
-	app.delete ( '/api/media/delete/items', perms( [ "media.delete" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.delete( '/api/media/delete/items', perms( [ "media.delete" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { medias, ___errors } = typed_dict( req.body, [
 			{ name: "medias", type: "string[]", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		delete_media_delete_items ( req, medias, ( err: ILError, deleted: number ) => {
+		delete_media_delete_items( req, medias, ( err: ILError, deleted: number ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { deleted } );
 		} );
 	} );
 
-	app.post ( '/api/media/upload', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post( '/api/media/upload', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { title, module, id_folder, tags, ___errors } = typed_dict( req.body, [
 			{ name: "title", type: "string" },
 			{ name: "module", type: "string" },
@@ -187,16 +187,16 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "tags", type: "string[]" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		post_media_upload ( req, title, module, id_folder, tags, ( err: ILError, media: Media ) => {
+		post_media_upload( req, title, module, id_folder, tags, ( err: ILError, media: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
 		} );
 	} );
 
-	app.get ( '/api/media/search', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get( '/api/media/search', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { title, name, type, tags, year, skip, rows, ___errors } = typed_dict( req.query as any, [
 			{ name: "title", type: "string" },
 			{ name: "name", type: "string" },
@@ -207,43 +207,57 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "rows", type: "number" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		get_media_search ( req, title, name, type, tags, year, skip, rows, ( err: ILError, medias: Media ) => {
+		get_media_search( req, title, name, type, tags, year, skip, rows, ( err: ILError, medias: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
 		} );
 	} );
 
-	app.get ( '/api/media/get/latest', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get( '/api/media/get/latest', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { skip, rows, ___errors } = typed_dict( req.query as any, [
 			{ name: "skip", type: "number" },
 			{ name: "rows", type: "number" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		get_media_get_latest ( req, skip, rows, ( err: ILError, medias: Media ) => {
+		get_media_get_latest( req, skip, rows, ( err: ILError, medias: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
 		} );
 	} );
 
-	app.patch ( '/api/media/meta/update', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.patch( '/api/media/meta/update', perms( [ "media.create" ] ), ( req: ILRequest, res: ILResponse ) => {
 		const { id, title, tags, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "title", type: "string" },
 			{ name: "tags", type: "string[]" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
-		patch_media_meta_update ( req, id, title, tags, ( err: ILError, media: Media ) => {
+		patch_media_meta_update( req, id, title, tags, ( err: ILError, media: Media ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
+		} );
+	} );
+
+	app.get( '/api/media/download', ( req: ILRequest, res: ILResponse ) => {
+		const { ___errors, id } = typed_dict( req.query as any, [
+			{ name: "id", type: "string" }
+		] );
+
+		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
+
+		get_media_download( req, id, ( err: ILError, ok: boolean ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { ok } );
 		} );
 	} );
 
