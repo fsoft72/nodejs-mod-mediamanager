@@ -15,12 +15,12 @@ import {
 	get_media_get, get_media_get_latest, get_media_list, get_media_search, patch_media_folder_rename,
 	patch_media_meta_update, post_media_folder_create, post_media_upload, post_media_upload_chunk_add, post_media_upload_chunk_start,
 	// functions
-	media_get_multi,
+	media_get_multi, mm_media_get,
 } from './methods';
 
 import {
-	Media, MediaBind, MediaBindKeys, MediaFolder, MediaFolderKeys,
-	MediaKeys, MediaTreeItem, MediaTreeItemKeys,
+	Media, MediaBase, MediaBaseKeys, MediaBind, MediaBindKeys,
+	MediaFolder, MediaFolderKeys, MediaKeys, MediaTreeItem, MediaTreeItemKeys,
 } from './types';
 
 /*=== f2c_start __header ===*/
@@ -48,6 +48,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		post_media_upload_chunk_start( req, id_folder, filename, size, title, tags, anonymous, ( err: ILError, id_upload: string ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id_upload } );
@@ -63,6 +64,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		post_media_upload_chunk_add( req, id_upload, start, ( err: ILError, bytes: number ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { bytes } );
@@ -78,6 +80,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		post_media_folder_create( req, id_parent, name, ( err: ILError, folder: MediaFolder ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
@@ -93,6 +96,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		patch_media_folder_rename( req, id_folder, name, ( err: ILError, folder: MediaFolder ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
@@ -107,6 +111,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		delete_media_folder_delete( req, id_folder, ( err: ILError, ok: boolean ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { ok } );
@@ -117,6 +122,7 @@ export const init = ( liwe: ILiWE ) => {
 
 
 		get_media_folder_root( req, ( err: ILError, folder: MediaFolder ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { folder } );
@@ -131,6 +137,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_list( req, id_folders, ( err: ILError, medias: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
@@ -145,6 +152,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_get( req, id, ( err: ILError, media: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
@@ -159,6 +167,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_folders_tree( req, id_folder, ( err: ILError, tree: MediaFolder ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { tree } );
@@ -173,6 +182,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		delete_media_delete_items( req, medias, ( err: ILError, deleted: number ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { deleted } );
@@ -190,6 +200,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		post_media_upload( req, title, module, id_folder, tags, ( err: ILError, media: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
@@ -210,6 +221,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_search( req, title, name, type, tags, year, skip, rows, ( err: ILError, medias: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
@@ -225,6 +237,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_get_latest( req, skip, rows, ( err: ILError, medias: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { medias } );
@@ -241,6 +254,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		patch_media_meta_update( req, id, title, tags, ( err: ILError, media: Media ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { media } );
@@ -255,6 +269,7 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error( res, { message: `Parameters error: ${ ___errors.join( ', ' ) }` } );
 
 		get_media_download( req, id, ( err: ILError, ok: boolean ) => {
+			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { ok } );

@@ -8,8 +8,8 @@ import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
 
 import {
-	Media, MediaBind, MediaBindKeys, MediaFolder, MediaFolderKeys,
-	MediaKeys, MediaTreeItem, MediaTreeItemKeys,
+	Media, MediaBase, MediaBaseKeys, MediaBind, MediaBindKeys,
+	MediaFolder, MediaFolderKeys, MediaKeys, MediaTreeItem, MediaTreeItemKeys,
 } from './types';
 
 import _module_perms from './perms';
@@ -807,6 +807,29 @@ export const media_get_multi = ( medias?: string[], cback: LCback = null ): Prom
 
 		return cback ? cback( null, meds ) : resolve( meds );
 		/*=== f2c_end media_get_multi ===*/
+	} );
+};
+// }}}
+
+// {{{ mm_media_get ( req: ILRequest, id: string, cback: LCBack = null ): Promise<Media>
+/**
+ *
+ * @param req - ILRequest object [req]
+ * @param id - ID Media to get [req]
+ *
+ * @return : Media
+ *
+ */
+export const mm_media_get = ( req: ILRequest, id: string, cback: LCback = null ): Promise<Media> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start mm_media_get ===*/
+		const err = { message: "Media not found" };
+		const media: Media = await adb_find_one( _liwe.db, COLL_MM_MEDIAS, { id }, MediaKeys );
+
+		if ( !media ) return cback ? cback( err, null ) : reject( err );
+
+		return cback ? cback( null, media ) : resolve( media );
+		/*=== f2c_end mm_media_get ===*/
 	} );
 };
 // }}}

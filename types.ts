@@ -143,3 +143,43 @@ export const MediaTreeItemKeys = {
 	'subfolders': { type: 'MediaTreeItem[]', priv: false },
 };
 
+/** MediaBase */
+export interface MediaBase {
+	/** the main id field */
+	id?: string;
+	/** Media title */
+	title?: string;
+	/** The file mimetype  */
+	mimetype?: string;
+	/** The uploaded filename  */
+	filename?: string;
+	/** File size in bytes */
+	size?: number;
+	/** File Extension  */
+	ext?: string;
+	/** Latitude */
+	lat?: string;
+	/** Longitude */
+	lng?: string;
+	/** Width in pixels */
+	width?: number;
+	/** Height in pixels */
+	height?: number;
+	/** If a photo is vertical or horizontal */
+	orientation?: number;
+}
+
+export const MediaBaseKeys = {
+	'id': { type: 'string', priv: false },
+	'title': { type: 'string', priv: false },
+	'mimetype': { type: 'string', priv: false },
+	'filename': { type: 'string', priv: false },
+	'size': { type: 'number', priv: false },
+	'ext': { type: 'string', priv: false },
+	'lat': { type: 'string', priv: false },
+	'lng': { type: 'string', priv: false },
+	'width': { type: 'number', priv: false },
+	'height': { type: 'number', priv: false },
+	'orientation': { type: 'number', priv: false },
+};
+
