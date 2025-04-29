@@ -515,7 +515,11 @@ export const get_media_list = ( req: ILRequest, id_folders?: string[], cback: LC
 		let id_folder = undefined;
 		if ( id_folders && id_folders.length ) id_folder = { mode: 'in', val: [ ...id_folders ] };
 
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder }, MediaKeys );
+		const options = {
+			sort: [ { field: 'created', desc: -1 } ]
+		};
+
+		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder }, MediaKeys, options );
 
 		return cback ? cback( null, medias ) : resolve( medias );
 		/*=== f2c_end get_media_list ===*/
