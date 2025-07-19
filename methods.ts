@@ -4,6 +4,7 @@
  */
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
+import { LiWEResponse, responseError, responseSuccess } from '../../liwe/response';
 import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
 
@@ -244,7 +245,7 @@ export const mm_get_folder_by_name = async ( req: ILRequest, name: string, id_pa
 };
 /*=== f2c_end __file_header ===*/
 
-// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string, cback: LCBack = null ): Promise<string>
+// {{{ post_media_upload_chunk_start ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: stringcback: LCBack = null ): Promise<string>
 /**
  *
  * Use this to start a new chunked upload.
@@ -264,45 +265,43 @@ export const mm_get_folder_by_name = async ( req: ILRequest, name: string, id_pa
  * @return id_upload: string
  *
  */
-export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string, cback: LCback = null ): Promise<string> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_media_upload_chunk_start ===*/
-		const err = { message: "Folder not found" };
+export const post_media_upload_chunk_start = async ( req: ILRequest, id_folder: string, filename: string, size: number, title?: string, tags?: string[], anonymous?: string ): Promise<LiWEResponse<string>> => {
+	/*=== f2c_start post_media_upload_chunk_start ===*/
+	const err = { message: "Folder not found" };
 
-		// if there is no anonymous flag, the user must be logged in and have the 'media.create' permission
-		if ( !anonymous ) {
-			if ( !perm_available( req?.user ?? {}, [ 'media.create' ] ) ) {
-				err.message = _( "You don't have the permission to upload media" );
-				return cback ? cback( err, null ) : reject( err );
-			}
-		} else {
-			// if anonymous is present, we check it against the data being uploaded
-			const d = md5( `${ filename }${ size }${ id_folder }` );
-			if ( d != anonymous ) {
-				err.message = _( "Invalid anonymous token" );
-				return cback ? cback( err, null ) : reject( err );
-			}
+	// if there is no anonymous flag, the user must be logged in and have the 'media.create' permission
+	if ( !anonymous ) {
+		if ( !perm_available( req?.user ?? {}, [ 'media.create' ] ) ) {
+			err.message = _( "You don't have the permission to upload media" );
+			return responseError( err.message );
 		}
+	} else {
+		// if anonymous is present, we check it against the data being uploaded
+		const d = md5( `${ filename }${ size }${ id_folder }` );
+		if ( d != anonymous ) {
+			err.message = _( "Invalid anonymous token" );
+			return responseError( err.message );
+		}
+	}
 
-		const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
-		if ( !folder ) return cback ? cback( err, null ) : reject( err );
+	const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
+	if ( !folder ) return responseError( err.message );
 
-		const media: Media = _prepare_media( req, folder, filename, size, title );
+	const media: Media = _prepare_media( req, folder, filename, size, title );
 
-		// Create an empty file with the correct size if it doesn't exist
-		if ( !fs.exists( media.abs_path ) ) fs.write( media.abs_path, Buffer.alloc( media.size ) );
+	// Create an empty file with the correct size if it doesn't exist
+	if ( !fs.exists( media.abs_path ) ) fs.write( media.abs_path, Buffer.alloc( media.size ) );
 
-		await tag_obj( req, tags, media, 'mediamanager' );
+	await tag_obj( req, tags, media, 'mediamanager' );
 
-		await adb_record_add( req.db, COLL_MM_MEDIAS, media );
+	await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 
-		return cback ? cback( null, media.id ) : resolve( media.id );
-		/*=== f2c_end post_media_upload_chunk_start ===*/
-	} );
+	return responseSuccess( media.id );
+	/*=== f2c_end post_media_upload_chunk_start ===*/
 };
 // }}}
 
-// {{{ post_media_upload_chunk_add ( req: ILRequest, id_upload: string, start: number, cback: LCBack = null ): Promise<number>
+// {{{ post_media_upload_chunk_add ( req: ILRequest, id_upload: string, start: numbercback: LCBack = null ): Promise<number>
 /**
  *
  * This call will add a new chunk to the file being uploaded.
@@ -317,13 +316,13 @@ export const post_media_upload_chunk_start = ( req: ILRequest, id_folder: string
  * @return bytes: number
  *
  */
-export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, start: number, cback: LCback = null ): Promise<number> => {
+export const post_media_upload_chunk_add = async ( req: ILRequest, id_upload: string, start: number ): Promise<LiWEResponse<number>> => {
+	/*=== f2c_start post_media_upload_chunk_add ===*/
 	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_media_upload_chunk_add ===*/
 		const err = { message: "Upload not found" };
 		let media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id: id_upload } );
 
-		if ( !media ) return cback ? cback( err, null ) : reject( err );
+		if ( !media ) return reject( responseError( err.message ) );
 
 		let bytes = 0;
 
@@ -343,14 +342,15 @@ export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, 
 
 				await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 			}
-			return cback ? cback( null, bytes ) : resolve( bytes );
+			return resolve( responseSuccess( bytes ) );
 		} );
-		/*=== f2c_end post_media_upload_chunk_add ===*/
 	} );
+
+	/*=== f2c_end post_media_upload_chunk_add ===*/
 };
 // }}}
 
-// {{{ post_media_folder_create ( req: ILRequest, id_parent: string, name: string, cback: LCBack = null ): Promise<MediaFolder>
+// {{{ post_media_folder_create ( req: ILRequest, id_parent: string, name: stringcback: LCBack = null ): Promise<MediaFolder>
 /**
  *
  * Creates a new folder
@@ -361,45 +361,43 @@ export const post_media_upload_chunk_add = ( req: ILRequest, id_upload: string, 
  * @return folder: MediaFolder
  *
  */
-export const post_media_folder_create = ( req: ILRequest, id_parent: string, name: string, cback: LCback = null ): Promise<MediaFolder> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_media_folder_create ===*/
-		const err = { message: "Folder not found" };
-		const domain = await system_domain_get_by_session( req );
-		const parent: MediaFolder = await _resolve_folder( req, id_parent, err );
+export const post_media_folder_create = async ( req: ILRequest, id_parent: string, name: string ): Promise<LiWEResponse<MediaFolder>> => {
+	/*=== f2c_start post_media_folder_create ===*/
+	const err = { message: "Folder not found" };
+	const domain = await system_domain_get_by_session( req );
+	const parent: MediaFolder = await _resolve_folder( req, id_parent, err );
 
-		if ( !parent ) return cback ? cback( err, null ) : reject( err );
+	if ( !parent ) return responseError( err.message );
 
-		// check if the folder already exists
-		const fold = await mm_get_folder_by_name( req, name, parent.id );
-		if ( fold ) {
-			err.message = "Folder already exists";
-			return cback ? cback( err, null ) : reject( err );
-		}
+	// check if the folder already exists
+	const fold = await mm_get_folder_by_name( req, name, parent.id );
+	if ( fold ) {
+		err.message = "Folder already exists";
+		return responseError( err.message );
+	}
 
-		const folder: MediaFolder = {
-			id: mkid( 'folder' ),
-			domain: domain.code,
-			name,
-			id_parent,
-			subfolders: [],
-			medias: [],
-		};
+	const folder: MediaFolder = {
+		id: mkid( 'folder' ),
+		domain: domain.code,
+		name,
+		id_parent,
+		subfolders: [],
+		medias: [],
+	};
 
-		// add the new folder to the parent subfolders
-		parent.subfolders.push( folder.id );
-		await adb_record_add( req.db, COLL_MM_FOLDERS, parent );
+	// add the new folder to the parent subfolders
+	parent.subfolders.push( folder.id );
+	await adb_record_add( req.db, COLL_MM_FOLDERS, parent );
 
-		// save the new folder
-		await adb_record_add( req.db, COLL_MM_FOLDERS, folder );
+	// save the new folder
+	await adb_record_add( req.db, COLL_MM_FOLDERS, folder );
 
-		return cback ? cback( null, folder ) : resolve( folder );
-		/*=== f2c_end post_media_folder_create ===*/
-	} );
+	return responseSuccess( folder );
+	/*=== f2c_end post_media_folder_create ===*/
 };
 // }}}
 
-// {{{ patch_media_folder_rename ( req: ILRequest, id_folder: string, name: string, cback: LCBack = null ): Promise<MediaFolder>
+// {{{ patch_media_folder_rename ( req: ILRequest, id_folder: string, name: stringcback: LCBack = null ): Promise<MediaFolder>
 /**
  *
  * Renames a folder
@@ -410,25 +408,23 @@ export const post_media_folder_create = ( req: ILRequest, id_parent: string, nam
  * @return folder: MediaFolder
  *
  */
-export const patch_media_folder_rename = ( req: ILRequest, id_folder: string, name: string, cback: LCback = null ): Promise<MediaFolder> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start patch_media_folder_rename ===*/
-		const err = { message: "Folder not found" };
-		const folder: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
+export const patch_media_folder_rename = async ( req: ILRequest, id_folder: string, name: string ): Promise<LiWEResponse<MediaFolder>> => {
+	/*=== f2c_start patch_media_folder_rename ===*/
+	const err = { message: "Folder not found" };
+	const folder: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
 
-		if ( !folder ) return cback ? cback( err, null ) : reject( err );
+	if ( !folder ) return responseError( err.message );
 
-		folder.name = name;
+	folder.name = name;
 
-		await adb_record_add( req.db, COLL_MM_FOLDERS, folder );
+	await adb_record_add( req.db, COLL_MM_FOLDERS, folder );
 
-		return cback ? cback( null, folder ) : resolve( folder );
-		/*=== f2c_end patch_media_folder_rename ===*/
-	} );
+	return responseSuccess( folder );
+	/*=== f2c_end patch_media_folder_rename ===*/
 };
 // }}}
 
-// {{{ delete_media_folder_delete ( req: ILRequest, id_folder: string, cback: LCBack = null ): Promise<boolean>
+// {{{ delete_media_folder_delete ( req: ILRequest, id_folder: stringcback: LCBack = null ): Promise<boolean>
 /**
  *
  * This endpoint deletes the provided folder along with all the subfolders and all the media contained.
@@ -438,39 +434,37 @@ export const patch_media_folder_rename = ( req: ILRequest, id_folder: string, na
  * @return ok: boolean
  *
  */
-export const delete_media_folder_delete = ( req: ILRequest, id_folder: string, cback: LCback = null ): Promise<boolean> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start delete_media_folder_delete ===*/
-		const domain = await system_domain_get_by_session( req );
-		const err = { message: "Folder not found" };
-		const folder: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { domain: domain.code, id: id_folder } );
+export const delete_media_folder_delete = async ( req: ILRequest, id_folder: string ): Promise<LiWEResponse<boolean>> => {
+	/*=== f2c_start delete_media_folder_delete ===*/
+	const domain = await system_domain_get_by_session( req );
+	const err = { message: "Folder not found" };
+	const folder: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { domain: domain.code, id: id_folder } );
 
-		if ( !folder ) return cback ? cback( err, null ) : reject( err );
+	if ( !folder ) return responseError( err.message );
 
-		// delete all the subfolders
-		for ( const id of folder.subfolders ) {
-			await delete_media_folder_delete( req, id );
-		}
+	// delete all the subfolders
+	for ( const id of folder.subfolders ) {
+		await delete_media_folder_delete( req, id );
+	}
 
-		// list all the medias
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder: folder.id } );
-		if ( medias.length ) await delete_media_delete_items( req, medias.map( m => m.id ) );
+	// list all the medias
+	const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder: folder.id } );
+	if ( medias.length ) await delete_media_delete_items( req, medias.map( m => m.id ) );
 
-		// get the parent folder
-		const parent: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { domain: domain.code, id: folder.id_parent } );
+	// get the parent folder
+	const parent: MediaFolder = await adb_find_one( req.db, COLL_MM_FOLDERS, { domain: domain.code, id: folder.id_parent } );
 
-		// if the parent exists, remove the folder from the subfolders
-		if ( parent ) {
-			parent.subfolders = parent.subfolders.filter( id => id != folder.id );
-			await adb_record_add( req.db, COLL_MM_FOLDERS, parent );
-		}
+	// if the parent exists, remove the folder from the subfolders
+	if ( parent ) {
+		parent.subfolders = parent.subfolders.filter( id => id != folder.id );
+		await adb_record_add( req.db, COLL_MM_FOLDERS, parent );
+	}
 
-		// delete the folder
-		await adb_del_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
+	// delete the folder
+	await adb_del_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
 
-		return cback ? cback( null, true ) : resolve( true );
-		/*=== f2c_end delete_media_folder_delete ===*/
-	} );
+	return responseSuccess( true );
+	/*=== f2c_end delete_media_folder_delete ===*/
 };
 // }}}
 
@@ -483,18 +477,16 @@ export const delete_media_folder_delete = ( req: ILRequest, id_folder: string, c
  * @return folder: MediaFolder
  *
  */
-export const get_media_folder_root = ( req: ILRequest, cback: LCback = null ): Promise<MediaFolder> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_folder_root ===*/
-		const folder: MediaFolder = await _get_root_folder( req );
+export const get_media_folder_root = async ( req: ILRequest, ): Promise<LiWEResponse<MediaFolder>> => {
+	/*=== f2c_start get_media_folder_root ===*/
+	const folder: MediaFolder = await _get_root_folder( req );
 
-		return cback ? cback( null, folder ) : resolve( folder );
-		/*=== f2c_end get_media_folder_root ===*/
-	} );
+	return responseSuccess( folder );
+	/*=== f2c_end get_media_folder_root ===*/
 };
 // }}}
 
-// {{{ get_media_list ( req: ILRequest, id_folders?: string[], cback: LCBack = null ): Promise<Media[]>
+// {{{ get_media_list ( req: ILRequest, id_folders?: string[]cback: LCBack = null ): Promise<Media[]>
 /**
  *
  * This endpoints can returns all elements of the specified `id_folder`.
@@ -505,29 +497,27 @@ export const get_media_folder_root = ( req: ILRequest, cback: LCback = null ): P
  * @return medias: Media
  *
  */
-export const get_media_list = ( req: ILRequest, id_folders?: string[], cback: LCback = null ): Promise<Media[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_list ===*/
-		const domain = await system_domain_get_by_session( req );
-		if ( !id_folders || id_folders.length == 0 ) id_folders = undefined;
-		if ( id_folders && id_folders.length && id_folders[ 0 ] == 'default-root' ) id_folders = undefined;
+export const get_media_list = async ( req: ILRequest, id_folders?: string[] ): Promise<LiWEResponse<Media[]>> => {
+	/*=== f2c_start get_media_list ===*/
+	const domain = await system_domain_get_by_session( req );
+	if ( !id_folders || id_folders.length == 0 ) id_folders = undefined;
+	if ( id_folders && id_folders.length && id_folders[ 0 ] == 'default-root' ) id_folders = undefined;
 
-		let id_folder = undefined;
-		if ( id_folders && id_folders.length ) id_folder = { mode: 'in', val: [ ...id_folders ] };
+	let id_folder = undefined;
+	if ( id_folders && id_folders.length ) id_folder = { mode: 'in', val: [ ...id_folders ] };
 
-		const options = {
-			sort: [ { field: 'created', desc: -1 } ]
-		};
+	const options = {
+		sort: [ { field: 'created', desc: -1 } ]
+	};
 
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder }, MediaKeys, options );
+	const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { domain: domain.code, id_folder }, MediaKeys, options );
 
-		return cback ? cback( null, medias ) : resolve( medias );
-		/*=== f2c_end get_media_list ===*/
-	} );
+	return responseSuccess( medias );
+	/*=== f2c_end get_media_list ===*/
 };
 // }}}
 
-// {{{ get_media_get ( req: ILRequest, id: string, cback: LCBack = null ): Promise<Media>
+// {{{ get_media_get ( req: ILRequest, id: stringcback: LCBack = null ): Promise<Media>
 /**
  *
  * @param id - The media ID [req]
@@ -535,24 +525,22 @@ export const get_media_list = ( req: ILRequest, id_folders?: string[], cback: LC
  * @return media: Media
  *
  */
-export const get_media_get = ( req: ILRequest, id: string, cback: LCback = null ): Promise<Media> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_get ===*/
-		const err = { message: "Media not found" };
-		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
+export const get_media_get = async ( req: ILRequest, id: string ): Promise<LiWEResponse<Media>> => {
+	/*=== f2c_start get_media_get ===*/
+	const err = { message: "Media not found" };
+	const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
 
-		if ( !media ) {
-			req.res.status( 404 ).send( err );
-			return cback ? cback( err, null ) : reject( err );
-		}
+	if ( !media ) {
+		req.res.status( 404 ).send( err );
+		return responseError( err.message );
+	}
 
-		return cback ? cback( null, media ) : resolve( media );
-		/*=== f2c_end get_media_get ===*/
-	} );
+	return responseSuccess( media );
+	/*=== f2c_end get_media_get ===*/
 };
 // }}}
 
-// {{{ get_media_folders_tree ( req: ILRequest, id_folder?: string, cback: LCBack = null ): Promise<MediaFolder>
+// {{{ get_media_folders_tree ( req: ILRequest, id_folder?: stringcback: LCBack = null ): Promise<MediaFolder>
 /**
  *
  * Returns a tree of folders starting from the `id_folder` provided.
@@ -564,28 +552,26 @@ export const get_media_get = ( req: ILRequest, id: string, cback: LCback = null 
  * @return tree: MediaFolder
  *
  */
-export const get_media_folders_tree = ( req: ILRequest, id_folder?: string, cback: LCback = null ): Promise<MediaFolder> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_folders_tree ===*/
-		const err = { message: "Folder not found" };
-		let folder: any;
+export const get_media_folders_tree = async ( req: ILRequest, id_folder?: string ): Promise<LiWEResponse<MediaFolder>> => {
+	/*=== f2c_start get_media_folders_tree ===*/
+	const err = { message: "Folder not found" };
+	let folder: any;
 
-		if ( !id_folder || id_folder == 'root' )
-			folder = await _get_root_folder( req );
-		else
-			folder = await adb_find_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
+	if ( !id_folder || id_folder == 'root' )
+		folder = await _get_root_folder( req );
+	else
+		folder = await adb_find_one( req.db, COLL_MM_FOLDERS, { id: id_folder } );
 
-		if ( !folder ) return cback ? cback( err, null ) : reject( err );
+	if ( !folder ) return responseError( err.message );
 
-		const tree = await _build_tree( req, folder.id );
+	const tree = await _build_tree( req, folder.id );
 
-		return cback ? cback( null, tree ) : resolve( tree );
-		/*=== f2c_end get_media_folders_tree ===*/
-	} );
+	return responseSuccess( tree );
+	/*=== f2c_end get_media_folders_tree ===*/
 };
 // }}}
 
-// {{{ delete_media_delete_items ( req: ILRequest, medias: string[], cback: LCBack = null ): Promise<number>
+// {{{ delete_media_delete_items ( req: ILRequest, medias: string[]cback: LCBack = null ): Promise<number>
 /**
  *
  * This endpoint deletes from the filesystem all the items specified inside the `medias`.\
@@ -596,42 +582,40 @@ export const get_media_folders_tree = ( req: ILRequest, id_folder?: string, cbac
  * @return deleted: number
  *
  */
-export const delete_media_delete_items = ( req: ILRequest, medias: string[], cback: LCback = null ): Promise<number> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start delete_media_delete_items ===*/
-		let res: LiWEEventResponse;
-		const domain = await system_domain_get_by_session( req );
-		const medias_deleted: Media[] = [];
-		const medias_to_delete: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS,
-			{
-				domain: domain.code,
-				id: { mode: 'in', value: medias }
-			}
-		);
-
-		if ( medias_to_delete.length == 0 )
-			return cback ? cback( null, 0 ) : resolve( 0 );
-
-		for ( const media of medias_to_delete ) {
-			res = await liwe_event_emit( req, MM_EVENT_MEDIA_DELETE, { media } );
-			if ( res.length && res.reduce( ( acc, val ) => acc + ( val.skip ? 1 : 0 ), 0 ) != 0 ) continue;
-
-			medias_deleted.push( media );
-
-			fs.rm( media.abs_path );
-			fs.rm( media.thumbnail );
+export const delete_media_delete_items = async ( req: ILRequest, medias: string[] ): Promise<LiWEResponse<number>> => {
+	/*=== f2c_start delete_media_delete_items ===*/
+	let res: LiWEEventResponse;
+	const domain = await system_domain_get_by_session( req );
+	const medias_deleted: Media[] = [];
+	const medias_to_delete: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS,
+		{
+			domain: domain.code,
+			id: { mode: 'in', value: medias }
 		}
+	);
 
-		// delete the records from the database
-		await adb_del_all_raw( req.db, COLL_MM_MEDIAS, medias_deleted );
+	if ( medias_to_delete.length == 0 )
+		return responseSuccess( 0 );
 
-		return cback ? cback( null, medias_deleted.length ) : resolve( medias_deleted.length );
-		/*=== f2c_end delete_media_delete_items ===*/
-	} );
+	for ( const media of medias_to_delete ) {
+		res = await liwe_event_emit( req, MM_EVENT_MEDIA_DELETE, { media } );
+		if ( res.length && res.reduce( ( acc, val ) => acc + ( val.skip ? 1 : 0 ), 0 ) != 0 ) continue;
+
+		medias_deleted.push( media );
+
+		fs.rm( media.abs_path );
+		fs.rm( media.thumbnail );
+	}
+
+	// delete the records from the database
+	await adb_del_all_raw( req.db, COLL_MM_MEDIAS, medias_deleted );
+
+	return responseSuccess( medias_deleted.length );
+	/*=== f2c_end delete_media_delete_items ===*/
 };
 // }}}
 
-// {{{ post_media_upload ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[], cback: LCBack = null ): Promise<Media[]>
+// {{{ post_media_upload ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[]cback: LCBack = null ): Promise<Media[]>
 /**
  *
  * This method allows the upload of one or more files, using the *classical* way of uploading of `POST` files.
@@ -644,51 +628,49 @@ export const delete_media_delete_items = ( req: ILRequest, medias: string[], cba
  * @return media: Media
  *
  */
-export const post_media_upload = ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[], cback: LCback = null ): Promise<Media[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_media_upload ===*/
-		const err = { message: "No files uploaded" };
-		const keys = Object.keys( req.files );
+export const post_media_upload = async ( req: ILRequest, title?: string, module?: string, id_folder?: string, tags?: string[] ): Promise<LiWEResponse<Media[]>> => {
+	/*=== f2c_start post_media_upload ===*/
+	const err = { message: "No files uploaded" };
+	const keys = Object.keys( req.files );
 
-		if ( keys.length == 0 )
-			return cback ? cback( err, null ) : reject( err );
+	if ( keys.length == 0 )
+		return responseError( err.message );
 
-		const domain = await system_domain_get_by_session( req );
-		const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
-		const res: Media[] = [];
+	const domain = await system_domain_get_by_session( req );
+	const folder: MediaFolder = await _resolve_folder( req, id_folder, err );
+	const res: Media[] = [];
 
-		if ( !folder ) return cback ? cback( err, null ) : reject( err );
+	if ( !folder ) return responseError( err.message );
 
 
-		await Promise.all( keys.map( async ( key ) => {
-			const file = req.files[ key ];
+	await Promise.all( keys.map( async ( key ) => {
+		const file = req.files[ key ];
 
-			if ( !title ) title = file.name;
+		if ( !title ) title = file.name;
 
-			const media: Media = _prepare_media( req, folder, file.name, file.size, title );
+		const media: Media = _prepare_media( req, folder, file.name, file.size, title );
 
-			// console.log( "=== FILE: ", key, file, media );
+		// console.log( "=== FILE: ", key, file, media );
 
-			// move the tmp file to the correct location
-			fs.move( file.tempFilePath, media.abs_path );
+		// move the tmp file to the correct location
+		fs.move( file.tempFilePath, media.abs_path );
 
-			await tag_obj( req, tags, media, 'mediamanager' );
+		await tag_obj( req, tags, media, 'mediamanager' );
 
-			await _media_is_ready( req, media );
+		await _media_is_ready( req, media );
 
-			// add the media to the database
-			await adb_record_add( req.db, COLL_MM_MEDIAS, media, MediaKeys );
+		// add the media to the database
+		await adb_record_add( req.db, COLL_MM_MEDIAS, media, MediaKeys );
 
-			res.push( media );
-		} ) );
+		res.push( media );
+	} ) );
 
-		return cback ? cback( null, res ) : resolve( res );
-		/*=== f2c_end post_media_upload ===*/
-	} );
+	return responseSuccess( res );
+	/*=== f2c_end post_media_upload ===*/
 };
 // }}}
 
-// {{{ get_media_search ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50, cback: LCBack = null ): Promise<Media[]>
+// {{{ get_media_search ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50cback: LCBack = null ): Promise<Media[]>
 /**
  *
  * Performs a query for one or more of the given fields
@@ -704,21 +686,19 @@ export const post_media_upload = ( req: ILRequest, title?: string, module?: stri
  * @return medias: Media
  *
  */
-export const get_media_search = ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50, cback: LCback = null ): Promise<Media[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_search ===*/
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { title: { mode: 'like', value: title }, name, type, tags, year }, MediaKeys, {
-			skip, rows,
-			sort: [ { field: 'created', desc: -1 } ]
-		} );
-
-		return cback ? cback( null, medias ) : resolve( medias );
-		/*=== f2c_end get_media_search ===*/
+export const get_media_search = async ( req: ILRequest, title?: string, name?: string, type?: string, tags?: string[], year?: number, skip: number = 0, rows: number = 50 ): Promise<LiWEResponse<Media[]>> => {
+	/*=== f2c_start get_media_search ===*/
+	const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, { title: { mode: 'like', value: title }, name, type, tags, year }, MediaKeys, {
+		skip, rows,
+		sort: [ { field: 'created', desc: -1 } ]
 	} );
+
+	return responseSuccess( medias );
+	/*=== f2c_end get_media_search ===*/
 };
 // }}}
 
-// {{{ get_media_get_latest ( req: ILRequest, skip: number = 0, rows: number = 50, cback: LCBack = null ): Promise<Media[]>
+// {{{ get_media_get_latest ( req: ILRequest, skip: number = 0, rows: number = 50cback: LCBack = null ): Promise<Media[]>
 /**
  *
  * @param skip - The starting point [opt]
@@ -727,18 +707,16 @@ export const get_media_search = ( req: ILRequest, title?: string, name?: string,
  * @return medias: Media
  *
  */
-export const get_media_get_latest = ( req: ILRequest, skip: number = 0, rows: number = 50, cback: LCback = null ): Promise<Media[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_get_latest ===*/
-		const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, {}, MediaKeys, { skip, rows, sort: [ { field: "created", desc: -1 } ] } );
+export const get_media_get_latest = async ( req: ILRequest, skip: number = 0, rows: number = 50 ): Promise<LiWEResponse<Media[]>> => {
+	/*=== f2c_start get_media_get_latest ===*/
+	const medias: Media[] = await adb_find_all( req.db, COLL_MM_MEDIAS, {}, MediaKeys, { skip, rows, sort: [ { field: "created", desc: -1 } ] } );
 
-		return cback ? cback( null, medias ) : resolve( medias );
-		/*=== f2c_end get_media_get_latest ===*/
-	} );
+	return responseSuccess( medias );
+	/*=== f2c_end get_media_get_latest ===*/
 };
 // }}}
 
-// {{{ patch_media_meta_update ( req: ILRequest, id: string, title?: string, tags?: string[], cback: LCBack = null ): Promise<Media>
+// {{{ patch_media_meta_update ( req: ILRequest, id: string, title?: string, tags?: string[]cback: LCBack = null ): Promise<Media>
 /**
  *
  * Updates the media metadata
@@ -750,29 +728,27 @@ export const get_media_get_latest = ( req: ILRequest, skip: number = 0, rows: nu
  * @return media: Media
  *
  */
-export const patch_media_meta_update = ( req: ILRequest, id: string, title?: string, tags?: string[], cback: LCback = null ): Promise<Media> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start patch_media_meta_update ===*/
-		const err = { message: _( "Media not found" ) };
-		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
+export const patch_media_meta_update = async ( req: ILRequest, id: string, title?: string, tags?: string[] ): Promise<LiWEResponse<Media>> => {
+	/*=== f2c_start patch_media_meta_update ===*/
+	const err = { message: _( "Media not found" ) };
+	const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
 
-		if ( !media ) return cback ? cback( err, null ) : reject( err );
+	if ( !media ) return responseError( err.message );
 
-		if ( title ) media.title = title;
-		if ( tags ) {
-			media.tags = [];
-			await tag_obj( req, tags, media, 'mediamanager' );
-		}
+	if ( title ) media.title = title;
+	if ( tags ) {
+		media.tags = [];
+		await tag_obj( req, tags, media, 'mediamanager' );
+	}
 
-		await adb_record_add( req.db, COLL_MM_MEDIAS, media );
+	await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 
-		return cback ? cback( null, media ) : resolve( media );
-		/*=== f2c_end patch_media_meta_update ===*/
-	} );
+	return responseSuccess( media );
+	/*=== f2c_end patch_media_meta_update ===*/
 };
 // }}}
 
-// {{{ get_media_download ( req: ILRequest, id?: string, cback: LCBack = null ): Promise<boolean>
+// {{{ get_media_download ( req: ILRequest, id?: stringcback: LCBack = null ): Promise<boolean>
 /**
  *
  * @param id - The media ID [opt]
@@ -780,17 +756,15 @@ export const patch_media_meta_update = ( req: ILRequest, id: string, title?: str
  * @return ok: boolean
  *
  */
-export const get_media_download = ( req: ILRequest, id?: string, cback: LCback = null ): Promise<boolean> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_media_download ===*/
-		const err = { message: "Media not found" };
-		const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
+export const get_media_download = async ( req: ILRequest, id?: string ): Promise<LiWEResponse<boolean>> => {
+	/*=== f2c_start get_media_download ===*/
+	const err = { message: "Media not found" };
+	const media: Media = await adb_find_one( req.db, COLL_MM_MEDIAS, { id } );
 
-		if ( !media ) return cback ? cback( err, false ) : reject( err );
+	if ( !media ) return responseError( err.message );
 
-		return req.res.download( media.abs_path, media.name );
-		/*=== f2c_end get_media_download ===*/
-	} );
+	return req.res.download( media.abs_path, media.name );
+	/*=== f2c_end get_media_download ===*/
 };
 // }}}
 
@@ -804,14 +778,12 @@ export const get_media_download = ( req: ILRequest, id?: string, cback: LCback =
  * @return : Media
  *
  */
-export const media_get_multi = ( medias?: string[], cback: LCback = null ): Promise<Media[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start media_get_multi ===*/
-		const meds: Media[] = await adb_find_all( _liwe.db, COLL_MM_MEDIAS, { id: { mode: 'in', value: medias } }, MediaKeys );
+export const media_get_multi = async ( medias?: string[], cback: LCback = null ): Promise<Media[]> => {
+	/*=== f2c_start media_get_multi ===*/
+	const meds: Media[] = await adb_find_all( _liwe.db, COLL_MM_MEDIAS, { id: { mode: 'in', value: medias } }, MediaKeys );
 
-		return cback ? cback( null, meds ) : resolve( meds );
-		/*=== f2c_end media_get_multi ===*/
-	} );
+	return meds;
+	/*=== f2c_end media_get_multi ===*/
 };
 // }}}
 
@@ -824,17 +796,15 @@ export const media_get_multi = ( medias?: string[], cback: LCback = null ): Prom
  * @return : Media
  *
  */
-export const mm_media_get = ( req: ILRequest, id: string, cback: LCback = null ): Promise<Media> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start mm_media_get ===*/
-		const err = { message: "Media not found" };
-		const media: Media = await adb_find_one( _liwe.db, COLL_MM_MEDIAS, { id }, MediaKeys );
+export const mm_media_get = async ( req: ILRequest, id: string, cback: LCback = null ): Promise<Media> => {
+	/*=== f2c_start mm_media_get ===*/
+	const err = { message: "Media not found" };
+	const media: Media = await adb_find_one( _liwe.db, COLL_MM_MEDIAS, { id }, MediaKeys );
 
-		if ( !media ) return cback ? cback( err, null ) : reject( err );
+	if ( !media ) return err as any;
 
-		return cback ? cback( null, media ) : resolve( media );
-		/*=== f2c_end mm_media_get ===*/
-	} );
+	return media;
+	/*=== f2c_end mm_media_get ===*/
 };
 // }}}
 
@@ -848,39 +818,39 @@ export const mm_media_get = ( req: ILRequest, id: string, cback: LCback = null )
  * @return : boolean
  *
  */
-export const mediamanager_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<boolean> => {
-	return new Promise( async ( resolve, reject ) => {
-		_liwe = liwe;
+export const mediamanager_db_init = async ( liwe: ILiWE, cback: LCback = null ): Promise<boolean> => {
+	_liwe = liwe;
 
-		system_permissions_register( 'mediamanager', _module_perms );
+	system_permissions_register( 'mediamanager', _module_perms );
 
-		await adb_collection_init( liwe.db, COLL_MM_MEDIAS, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-			{ type: "persistent", fields: [ "domain" ], unique: false },
-			{ type: "persistent", fields: [ "id_owner" ], unique: false },
-			{ type: "persistent", fields: [ "id_folder" ], unique: false },
-			{ type: "persistent", fields: [ "title" ], unique: false },
-			{ type: "persistent", fields: [ "is_ready" ], unique: false },
-			{ type: "persistent", fields: [ "tags[*]" ], unique: false },
-			{ type: "persistent", fields: [ "year" ], unique: false },
-			{ type: "persistent", fields: [ "month" ], unique: false },
-			{ type: "persistent", fields: [ "creation" ], unique: false },
-			{ type: "persistent", fields: [ "orientation" ], unique: false },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_MM_MEDIAS, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+		{ type: "persistent", fields: [ "domain" ], unique: false },
+		{ type: "persistent", fields: [ "id_owner" ], unique: false },
+		{ type: "persistent", fields: [ "id_folder" ], unique: false },
+		{ type: "persistent", fields: [ "title" ], unique: false },
+		{ type: "persistent", fields: [ "is_ready" ], unique: false },
+		{ type: "persistent", fields: [ "tags[*]" ], unique: false },
+		{ type: "persistent", fields: [ "year" ], unique: false },
+		{ type: "persistent", fields: [ "month" ], unique: false },
+		{ type: "persistent", fields: [ "creation" ], unique: false },
+		{ type: "persistent", fields: [ "orientation" ], unique: false },
+	], { drop: false } );
 
-		await adb_collection_init( liwe.db, COLL_MM_BINDINGS, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_MM_BINDINGS, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+	], { drop: false } );
 
-		await adb_collection_init( liwe.db, COLL_MM_FOLDERS, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-			{ type: "persistent", fields: [ "domain" ], unique: false },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_MM_FOLDERS, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+		{ type: "persistent", fields: [ "domain" ], unique: false },
+	], { drop: false } );
 
-		/*=== f2c_start mediamanager_db_init ===*/
+	/*=== f2c_start mediamanager_db_init ===*/
 
-		/*=== f2c_end mediamanager_db_init ===*/
-	} );
+	/*=== f2c_end mediamanager_db_init ===*/
+
+	return true;
 };
 // }}}
 
