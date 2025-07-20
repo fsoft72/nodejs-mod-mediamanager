@@ -763,7 +763,9 @@ export const get_media_download = async ( req: ILRequest, id?: string ): Promise
 
 	if ( !media ) return responseError( err.message );
 
-	return req.res.download( media.abs_path, media.name );
+	req.res.download( media.abs_path, media.name );
+
+	return responseSuccess( true );
 	/*=== f2c_end get_media_download ===*/
 };
 // }}}
