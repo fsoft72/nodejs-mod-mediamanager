@@ -292,7 +292,8 @@ export const post_media_upload_chunk_start = async ( req: ILRequest, id_folder: 
 	// Create an empty file with the correct size if it doesn't exist
 	if ( !fs.exists( media.abs_path ) ) fs.write( media.abs_path, Buffer.alloc( media.size ) );
 
-	await tag_obj( req, tags, media, 'mediamanager' );
+	const l = await tag_obj( req, err, tags, media, 'mediamanager' );
+	if ( !l ) return responseError( err.message );
 
 	await adb_record_add( req.db, COLL_MM_MEDIAS, media );
 
@@ -655,7 +656,7 @@ export const post_media_upload = async ( req: ILRequest, title?: string, module?
 		// move the tmp file to the correct location
 		fs.move( file.tempFilePath, media.abs_path );
 
-		await tag_obj( req, tags, media, 'mediamanager' );
+		const l = await tag_obj( req, err, tags, media, 'mediamanager' );
 
 		await _media_is_ready( req, media );
 
@@ -738,7 +739,8 @@ export const patch_media_meta_update = async ( req: ILRequest, id: string, title
 	if ( title ) media.title = title;
 	if ( tags ) {
 		media.tags = [];
-		await tag_obj( req, tags, media, 'mediamanager' );
+		const l = await tag_obj( req, err, tags, media, 'mediamanager' );
+		if ( !l ) return responseError( err.message );
 	}
 
 	await adb_record_add( req.db, COLL_MM_MEDIAS, media );
